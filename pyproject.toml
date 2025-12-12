@@ -1,0 +1,22 @@
+
+[build-system]
+requires = ["maturin>1"]
+build-backend = "maturin"
+
+
+[project]
+name = "charms"
+dynamic = ["version", "description", "readme", "authors"]
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Rust",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+]
