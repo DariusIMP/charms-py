@@ -7,6 +7,17 @@ data types and operations.
 
 from typing import Any
 
+_IntoData = Any
+"""Type alias for values that can be converted to PyData.
+
+Can be:
+- PyData instance
+- JSON string
+- Python bytes (CBOR-encoded)
+- Python int, float, bool, None
+- Python list, dict, or other JSON-serializable object
+"""
+
 class PyApp:
     """Represents an application that can create, transform or destroy charms.
     
@@ -229,8 +240,38 @@ class PyUtxoId:
 class PyData:
     """Represents a data value guaranteed to be serialized/deserialized to/from CBOR."""
     
-    def __init__(self) -> None:
-        """Create an empty data value."""
+    def __init__(self, value: _IntoData | None = None) -> None:
+        """Create Data from a value.
+        
+        Args:
+            value: Value to convert to Data. Can be:
+                - None: creates empty data
+                - PyData instance: returns itself
+                - JSON string: parsed as JSON
+                - bytes: interpreted as CBOR or UTF-8 JSON
+                - int, float, bool: converted to JSON number/boolean
+                - list, dict, or other JSON-serializable object
+                
+        Raises:
+            ValueError: If the value cannot be converted to Data
+        """
+        ...
+    
+    @classmethod
+    def from_json(cls, json_str: str) -> "PyData":
+        """Create Data from a JSON string.
+        
+        The JSON will be converted to CBOR internally.
+        
+        Args:
+            json_str: JSON representation of the data
+            
+        Returns:
+            Data instance
+            
+        Raises:
+            ValueError: If the JSON is invalid
+        """
         ...
     
     def is_empty(self) -> bool:
@@ -246,6 +287,19 @@ class PyData:
         
         Returns:
             CBOR-encoded bytes
+        """
+        ...
+    
+    def to_json(self) -> str:
+        """Convert the data to a JSON string.
+        
+        The CBOR data will be deserialized to JSON.
+        
+        Returns:
+            JSON string representation
+            
+        Raises:
+            ValueError: If the data cannot be converted to JSON
         """
         ...
     

@@ -1,4 +1,4 @@
-use charms_data::{App, Data, Transaction, TxId, UtxoId, B32};
+use charms_data::{App, Data, Transaction, TxId, UtxoId, B32, util};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use serde_json;
@@ -217,13 +217,94 @@ struct PyData {
     inner: Data,
 }
 
+impl PyData {
+    pub(crate) fn from_py(obj: &Bound<PyAny>) -> PyResult<Self> {
+        if let Ok(py_data) = obj.extract::<PyData>() {
+            return Ok(py_data);
+        }
+        
+        if let Ok(json_str) = obj.extract::<String>() {
+            let value: serde_json::Value = serde_json::from_str(&json_str)
+                .map_err(|e| PyValueError::new_err(format!("invalid JSON: {}", e)))?;
+            return Ok(PyData {
+                inner: Data::from(&value),
+            });
+        }
+        
+        if let Ok(bytes) = obj.extract::<Vec<u8>>() {
+            match util::read::<Data, &[u8]>(bytes.as_slice()) {
+                Ok(data) => return Ok(PyData { inner: data }),
+                Err(_) => {
+                    // If not valid CBOR, try to interpret as JSON string
+                    if let Ok(json_str) = String::from_utf8(bytes) {
+                        let value: serde_json::Value = serde_json::from_str(&json_str)
+                            .map_err(|e| PyValueError::new_err(format!("invalid JSON: {}", e)))?;
+                        return Ok(PyData {
+                            inner: Data::from(&value),
+                        });
+                    }
+                }
+            }
+        }
+        
+        if let Ok(py_int) = obj.extract::<i64>() {
+            let value = serde_json::Value::from(py_int);
+            return Ok(PyData {
+                inner: Data::from(&value),
+            });
+        }
+        if let Ok(py_float) = obj.extract::<f64>() {
+            let value = serde_json::Value::from(py_float);
+            return Ok(PyData {
+                inner: Data::from(&value),
+            });
+        }
+        if let Ok(py_bool) = obj.extract::<bool>() {
+            let value = serde_json::Value::from(py_bool);
+            return Ok(PyData {
+                inner: Data::from(&value),
+            });
+        }
+        if obj.is_none() {
+            let value = serde_json::Value::Null;
+            return Ok(PyData {
+                inner: Data::from(&value),
+            });
+        }
+        
+        // For lists, dicts, and other objects, use Python's json module
+        // to convert to JSON string, then parse with serde_json
+        let json_module = PyModule::import(obj.py(), "json")?;
+        let json_dumps = json_module.getattr("dumps")?;
+        let json_str: String = json_dumps.call1((obj,))?.extract()?;
+        let value: serde_json::Value = serde_json::from_str(&json_str)
+            .map_err(|e| PyValueError::new_err(format!("cannot convert to JSON: {}", e)))?;
+        Ok(PyData {
+            inner: Data::from(&value),
+        })
+    }
+}
+
 #[pymethods]
 impl PyData {
     #[new]
-    fn new() -> Self {
-        PyData {
-            inner: Data::empty(),
+    #[pyo3(signature = (obj = None))]
+    fn new(obj: Option<&Bound<PyAny>>) -> PyResult<Self> {
+        match obj {
+            Some(obj) => Self::from_py(obj),
+            None => Ok(PyData {
+                inner: Data::empty(),
+            }),
         }
+    }
+
+    #[staticmethod]
+    fn from_json(json_str: &str) -> PyResult<Self> {
+        let value: serde_json::Value = serde_json::from_str(json_str)
+            .map_err(|e| PyValueError::new_err(format!("invalid JSON: {}", e)))?;
+        Ok(PyData {
+            inner: Data::from(&value),
+        })
     }
 
     fn is_empty(&self) -> bool {
@@ -232,6 +313,15 @@ impl PyData {
 
     fn bytes(&self) -> Vec<u8> {
         self.inner.bytes()
+    }
+
+    fn to_json(&self) -> PyResult<String> {
+        // Deserialize Data to serde_json::Value, then serialize to JSON string
+        let value: serde_json::Value = self.inner
+            .value()
+            .map_err(|e| PyValueError::new_err(format!("deserialization error: {}", e)))?;
+        serde_json::to_string(&value)
+            .map_err(|e| PyValueError::new_err(format!("serialization error: {}", e)))
     }
 
     fn __repr__(&self) -> String {
