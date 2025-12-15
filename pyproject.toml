@@ -3,7 +3,6 @@
 requires = ["maturin>1"]
 build-backend = "maturin"
 
-
 [project]
 name = "charms"
 dynamic = ["version", "description", "readme", "authors"]
@@ -16,7 +15,19 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Rust",
+    "Intended Audience :: Developers",
+    "Development Status :: 1 - Alpha",
+    "Topic :: Software Development :: Libraries",
+    "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows",
 ]
+
+[project.urls]
+"Bug Tracker" = "https://github.com/CharmsDev/charms/issues"
+"Source Code" = "https://github.com/CharmsDev/charms"
+"Documentation" = "https://docs.charms.dev"
+
+[tool.isort]
+profile = "black"
